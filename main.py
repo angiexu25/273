@@ -1,14 +1,25 @@
-import torch
 import os
 from torchvision import transforms
 from torch.utils.data import DataLoader
-import torch.nn as nn
 from torch.utils.data import random_split
 from torch.utils.data import Subset
-
+import torch.nn as nn
+import torch
 # Import other files
 from data_handler import FacialExpressionsDataset
 from model import EmotionCNN
+
+
+'''
+anger = 0
+contempt = 1
+disgust = 2
+fear = 3
+happiness = 4
+neutral = 5
+sadness = 6
+surprise = 7
+'''
 
 
 # Path to the CSV file
@@ -45,25 +56,9 @@ train_dataset, val_dataset = random_split(filtered_dataset, [train_size, val_siz
 train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True)
 val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 
-'''---check images loaded in dataset---
-import matplotlib.pyplot as plt
-
-def show_images(dataset, num_images=10):
-    fig, axes = plt.subplots(1, num_images, figsize=(15, 5))
-    for i in range(num_images):
-        image, label = dataset[i]
-        ax = axes[i]
-        image = image.permute(1, 2, 0)  # Change the order of dimensions to HxWxC
-        ax.imshow(image.numpy())
-        ax.set_title(f"Label: {label}")
-        ax.axis('off')
-    plt.show()
-
-show_images(dataset)
-'''
 
 # Initialize the model
-model = EmotionCNN(num_classes=7)  # 7 classes
+model = EmotionCNN(num_classes=8)  # 8 classes
 
 # Trainer
 criterion = nn.CrossEntropyLoss()
@@ -72,7 +67,9 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 num_epochs = 1
 # Number of epochs is the number of times you go through the entire dataset
 for epoch in range(num_epochs):
-    model.train()  # Set the model to training mode
+    # Training phase
+    model.train()  # Set the model to training mode，这句其实没有在train，只是set成train模式，下面的才是training
+    
     for images, labels in train_loader:  # Loop over batches of data
         optimizer.zero_grad()           # Clear gradients for the next training iteration
         outputs = model(images)         # Pass the batch through the network
@@ -91,13 +88,20 @@ for epoch in range(num_epochs):
             total_val_loss += val_loss.item()
             
             _, predicted = torch.max(val_outputs, 1)
+            '''
+            This line determines the model's predicted labels for each image. 
+            torch.max(val_outputs, 1) returns the indices of the maximum values along the dimension 1 (which represents class scores in your case). 
+            The _ is a placeholder for the actual maximum values, which you don't need here.
+            '''
             correct_predictions += (predicted == val_labels).sum().item()
-
+            '''
+            This line compares the predicted labels with the actual labels (val_labels) to count how many predictions were correct. 
+            The result is added to correct_predictions.
+            
+            '''
     # Calculate average loss and accuracy over the validation set
     avg_val_loss = total_val_loss / len(val_loader)
     val_accuracy = correct_predictions / len(val_loader.dataset)
-
     print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {avg_val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}")
 # Save the trained model
 torch.save(model.state_dict(), 'emotion_detection_model.pth')
-
