@@ -12,6 +12,8 @@ import time
 # Import other files
 from data_handler import FacialExpressionsDataset
 from model import EmotionCNN
+from flat_model import just_flat
+from check_image import check_image_size
 
 
 '''
@@ -36,6 +38,7 @@ cuda_id = torch.cuda.current_device()
 print(f"ID of current CUDA device: {torch.cuda.current_device()}")
 print(f"Name of current CUDA device: {torch.cuda.get_device_name(cuda_id)}")
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
+torch.cuda.empty_cache()
 
 # Path to the CSV file
 csv_file_path = "C:/UCI/Project/facial_expressions/data/legend.csv"
@@ -53,11 +56,16 @@ transform = transforms.Compose([
 dataset = FacialExpressionsDataset(csv_file=csv_file_path, img_dir=img_dir_path, transform=transform)
 
 # Filter out non-existing files
+target_width = 350
+target_height = 350
 existing_files = []
+bad_image = []
 for i in range(len(dataset.annotations)):
     img_path = os.path.join(img_dir_path, dataset.annotations.iloc[i, 1])
-    if os.path.exists(img_path):
+    if os.path.exists(img_path) and check_image_size(img_path, target_width, target_height):
         existing_files.append(i)
+    elif not check_image_size(img_path, target_width, target_height):
+        bad_image.append(i)
 
 # Create a new dataset only with existing files
 filtered_dataset = Subset(dataset, existing_files)
@@ -72,18 +80,58 @@ val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, pin_memory=Tr
 # display one image to see the result
 train_data_size = len(train_dataset)
 one_random = random.randrange(0, train_data_size)
-image_path = os.path.join(img_dir_path, dataset.annotations.iloc[one_random, 1])
+image_index = existing_files[one_random]
+image_path = os.path.join(img_dir_path, dataset.annotations.iloc[image_index, 1])
 example = image.imread(image_path)
 plt.imshow(example, cmap='gray')
-plt.xlabel("Expression: " + dataset.annotations.iloc[one_random, 2])
+plt.xlabel("Expression: " + dataset.annotations.iloc[image_index, 2])
 plt.show()
+"""
+train_data_size = len(train_dataset)
+fig, ax = plt.subplots(1,5, figsize = (18, 6))
+for i in range(5):
+    one_random = random.randrange(0, train_data_size)
+    image_index = existing_files[one_random]
+    image_path = os.path.join(img_dir_path, dataset.annotations.iloc[image_index, 1])
+    example = image.imread(image_path)
+    ax[i].imshow(example, cmap='gray')
+    ax[i].set_xlabel("Expression: " + dataset.annotations.iloc[image_index, 2])
+plt.show()
+"""
+
+# show one bad image
+
+bad_data_size = len(bad_image)
+print(f"Number of bad images is {bad_data_size}")
+one_random = random.randrange(0, bad_data_size)
+image_index = bad_image[one_random]
+image_path = os.path.join(img_dir_path, dataset.annotations.iloc[image_index, 1])
+example = image.imread(image_path)
+plt.imshow(example, cmap='gray')
+plt.xlabel("Expression: " + dataset.annotations.iloc[image_index, 2])
+plt.show()
+"""
+bad_data_size = len(bad_image)
+print(f"Number of bad images is {bad_data_size}")
+fig, ax = plt.subplots(1,5, figsize = (18, 6))
+for i in range(5):
+    one_random = random.randrange(0, bad_data_size)
+    image_index = bad_image[one_random]
+    image_path = os.path.join(img_dir_path, dataset.annotations.iloc[image_index, 1])
+    example = image.imread(image_path)
+    ax[i].imshow(example, cmap='gray')
+    ax[i].set_xlabel("Expression: " + dataset.annotations.iloc[image_index, 2])
+plt.show()
+"""
 
 # Initialize the model
 model = EmotionCNN(num_classes=8)  # 8 classes
+#model = just_flat(num_classes=8)
 
 # Trainer
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+
 
 start = time.time()
 num_epochs = 1

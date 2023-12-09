@@ -2,7 +2,7 @@ import torch.nn as nn
 
 
 class EmotionCNN(nn.Module):
-    def __init__(self, num_classes=7):  # Adjust num_classes based on your dataset
+    def __init__(self, num_classes=8):  # Adjust num_classes based on dataset
         super(EmotionCNN, self).__init__()
         
         # First block
