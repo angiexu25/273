@@ -14,6 +14,8 @@ from data_handler import FacialExpressionsDataset
 from model import EmotionCNN
 from flat_model import just_flat
 from check_image import check_image_size
+from weighted_loss import weighted_loss
+from collections import Counter
 
 
 '''
@@ -60,7 +62,8 @@ target_width = 350
 target_height = 350
 existing_files = []
 bad_image = []
-for i in range(len(dataset.annotations)):
+total_number_of_data = len(dataset.annotations)
+for i in range(total_number_of_data):
     img_path = os.path.join(img_dir_path, dataset.annotations.iloc[i, 1])
     if os.path.exists(img_path) and check_image_size(img_path, target_width, target_height):
         existing_files.append(i)
@@ -129,12 +132,29 @@ model = EmotionCNN(num_classes=8)  # 8 classes
 #model = just_flat(num_classes=8)
 
 # Trainer
-criterion = nn.CrossEntropyLoss()
+# define weighted loss
+for i in range(total_number_of_data):
+    dataset.annotations.iloc[i, 2] = dataset.annotations.iloc[i, 2].lower() # reduce uppercase emotion labels to lower case
+emotion_dict = dict(Counter(dataset.annotations.iloc[:, 2]))
+
+emotions = ["anger", "contempt", "disgust", "fear", "happiness", "neutral", "sadness", "surprise"]
+num_of_sample = []
+for emotion in emotions:
+    num_of_sample.append(emotion_dict[emotion])
+
+weighted = weighted_loss(total_number_of_data, num_of_sample, 8)
+print(emotion_dict)
+print(weighted)
+
+weighted = torch.from_numpy(weighted) # convert np array to torch tensor
+weighted = weighted.float()
+weighted.to(device)
+criterion = nn.CrossEntropyLoss(weight=weighted).to(device)
 optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 
 start = time.time()
-num_epochs = 1
+num_epochs = 5
 # Number of epochs is the number of times you go through the entire dataset
 for epoch in range(num_epochs):
     # Transfer model to GPU
@@ -178,6 +198,6 @@ for epoch in range(num_epochs):
     val_accuracy = correct_predictions / len(val_loader.dataset)
     print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {avg_val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}")
 # Save the trained model
-torch.save(model.state_dict(), 'emotion_detection_model.pth')
+# torch.save(model.state_dict(), 'emotion_detection_model.pth')
 spent = time.time()- start
 print(f"Total time spent is {spent}s")
