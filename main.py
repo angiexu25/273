@@ -150,7 +150,7 @@ weighted = torch.from_numpy(weighted) # convert np array to torch tensor
 weighted = weighted.float()
 weighted.to(device)
 criterion = nn.CrossEntropyLoss(weight=weighted).to(device)
-optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
+optimizer = torch.optim.Adam(model.parameters(), lr=0.0001)
 
 
 start = time.time()
@@ -161,6 +161,8 @@ for epoch in range(num_epochs):
     model.to(device)
     # Training phase
     model.train()  # Set the model to training mode，这句其实没有在train，只是set成train模式，下面的才是training
+    running_acc = 0
+    accuracy = 0
     
     for images, labels in train_loader:  # Loop over batches of data
         images, labels = images.to(device), labels.to(device)
@@ -169,6 +171,10 @@ for epoch in range(num_epochs):
         loss = criterion(outputs, labels)  # Compute the loss
         loss.backward()                 # Backpropagate the gradients
         optimizer.step()                # Update the network's parameters
+
+        _, predicted = torch.max(outputs, 1)
+        running_acc += (predicted == labels).sum().item()
+    accuracy = running_acc / train_data_size
 
     # Validation phase
     model.eval()  # Set the model to evaluation mode
@@ -196,7 +202,7 @@ for epoch in range(num_epochs):
     # Calculate average loss and accuracy over the validation set
     avg_val_loss = total_val_loss / len(val_loader)
     val_accuracy = correct_predictions / len(val_loader.dataset)
-    print(f"Epoch [{epoch+1}/{num_epochs}], Validation Loss: {avg_val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}")
+    print(f"Epoch [{epoch+1}/{num_epochs}], Training Accuracy: {accuracy} Validation Loss: {avg_val_loss:.4f}, Validation Accuracy: {val_accuracy:.4f}")
 # Save the trained model
 # torch.save(model.state_dict(), 'emotion_detection_model.pth')
 spent = time.time()- start
